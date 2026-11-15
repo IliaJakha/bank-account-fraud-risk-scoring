@@ -1,5 +1,6 @@
 """Load BAF Base dataset and split by chronological month index."""
 from pathlib import Path
+
 import pandas as pd
 
 TARGET = "fraud_bool"

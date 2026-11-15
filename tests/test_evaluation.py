@@ -1,4 +1,5 @@
 import pytest
+
 from baf_fraud.evaluation import capacity_metrics, classification_metrics
 
 

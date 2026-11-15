@@ -10,7 +10,7 @@ import pandas as pd
 import sklearn
 
 from .data import chronological_split, load_base
-from .evaluation import DEFAULT_BUDGETS, budget_sweep, evaluate_model
+from .evaluation import budget_sweep, evaluate_model
 from .modeling import SENTINEL_COLUMNS, build_candidates
 from .plotting import (
     plot_budget_sweep,
