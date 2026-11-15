@@ -3,7 +3,7 @@
 
 **Author:** Ilia Jakhaia  |  **Python · scikit-learn · pandas · NumPy · Matplotlib**
 
-![Fraud-risk analytics dashboard](assets/portfolio_overview.png)
+![Fraud-risk analytics dashboard](assets/portfolio_overview.svg)
 
 ## Executive summary
 
@@ -65,14 +65,14 @@ and separate redistribution terms.
 · [BAF authors / source repository](https://github.com/feedzai/bank-account-fraud)
 · [NeurIPS publication](https://arxiv.org/abs/2211.13358).
 
-![Fraud prevalence by month](assets/monthly_fraud_rate.png)
+![Fraud prevalence by month](assets/monthly_fraud_rate.svg)
 
 **Observation:** Recorded prevalence rose from **0.875% (month 2)** to
 **1.475% (month 7)**. Drift should be assessed before deploying a model beyond the benchmark.
 
 ## Model comparison · validation month 6
 
-![Validation metrics](assets/validation_comparison.png)
+![Validation metrics](assets/validation_comparison.svg)
 
 | Metric | Logistic regression | Random forest |
 |---|---:|---:|
@@ -87,7 +87,7 @@ Neither model was tuned using the held-out test set.
 
 ## Test-set behavior
 
-![Test confusion matrix](assets/test_confusion_matrix.png)
+![Test confusion matrix](assets/test_confusion_matrix.svg)
 
 At a **0.5 probability threshold**, the selected model records **7.23% precision** and
 **74.65% recall**, with 13,688 legitimate applications flagged. This operating point
@@ -95,10 +95,7 @@ is *not* the same as the **top-1%-by-score policy**, which restricts human revie
 969 cases regardless of score magnitude. The threshold 0.5 is a reference baseline,
 not a recommended production threshold.
 
-The next plot was **extracted from the original executed notebook** to preserve the
-actual predicted-score precision–recall curve; no curve was reconstructed from summary metrics.
-
-![Original test precision-recall curve](assets/original_test_precision_recall_curve.png)
+**Precision–recall curve:** The original notebook calculated this curve from held-out prediction scores. The full score-level data are not published, so we intentionally do **not** reconstruct a curve from summary metrics. Run `baf-fraud --data data/Base.csv` to generate an evidence-backed test precision–recall curve in `results/generated/figures/test_precision_recall_curve.png`.
 
 ## Quick start
 
@@ -129,7 +126,7 @@ an interactive walkthrough.
 ## Repository layout
 
 ```text
-assets/                       Recorded-notebook visuals and redesigned figures
+assets/                       Redesigned SVG figures from recorded results
 src/baf_fraud/                Data loading, preprocessing, models, metrics, plots, CLI
 notebooks/01_end_to_end_fraud_detection.ipynb
 results/reference_notebook_results.json   Original recorded outputs (provenance stated)
