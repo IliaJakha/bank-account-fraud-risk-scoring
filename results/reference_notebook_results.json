@@ -1,0 +1,78 @@
+{
+  "provenance": "Recorded outputs from user-supplied Untitled.ipynb (Nov 2026); full experiment not re-executed in this repository build",
+  "dataset": {
+    "rows": 1000000,
+    "columns": 32,
+    "legitimate": 988971,
+    "fraud": 11029,
+    "fraud_rate": 0.011029
+  },
+  "months": {
+    "0": 1.132588,
+    "1": 0.938724,
+    "2": 0.874587,
+    "3": 0.922245,
+    "4": 1.13712,
+    "5": 1.182505,
+    "6": 1.340507,
+    "7": 1.474552
+  },
+  "splits": {
+    "train": {
+      "rows": 794989,
+      "fraud_rate": 0.010252972053701372
+    },
+    "validation": {
+      "rows": 108168,
+      "fraud_rate": 0.013405073589231566
+    },
+    "test": {
+      "rows": 96843,
+      "fraud_rate": 0.014745515938167962
+    }
+  },
+  "validation": {
+    "Logistic Regression": {
+      "precision_0_5": 0.0533,
+      "recall_0_5": 0.7717,
+      "f1_0_5": 0.0996,
+      "average_precision": 0.1486,
+      "reviewed": 1082,
+      "frauds_detected": 266,
+      "precision_at_1pct": 0.2458,
+      "recall_at_1pct": 0.1834
+    },
+    "Random Forest": {
+      "precision_0_5": 0.0797,
+      "recall_0_5": 0.6469,
+      "f1_0_5": 0.1419,
+      "average_precision": 0.1442,
+      "reviewed": 1082,
+      "frauds_detected": 254,
+      "precision_at_1pct": 0.2348,
+      "recall_at_1pct": 0.1752
+    }
+  },
+  "selected_model": "Logistic Regression",
+  "test": {
+    "precision_0_5": 0.0723,
+    "recall_0_5": 0.7465,
+    "f1_0_5": 0.1318,
+    "average_precision": 0.1791,
+    "confusion_matrix": [
+      [
+        81727,
+        13688
+      ],
+      [
+        362,
+        1066
+      ]
+    ],
+    "reviewed": 969,
+    "frauds_detected": 265,
+    "precision_at_1pct": 0.2735,
+    "recall_at_1pct": 0.1856,
+    "lift_over_prevalence": 18.55
+  }
+}
