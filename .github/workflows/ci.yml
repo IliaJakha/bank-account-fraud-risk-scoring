@@ -1,16 +1,21 @@
-name: Test fraud-risk pipeline
+name: Lint and test fraud-risk pipeline
+
 on:
   push:
   pull_request:
+
 jobs:
-  unit-tests:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install
+          cache: pip
+      - name: Install package and development tools
         run: python -m pip install -e '.[dev]'
-      - name: Run tests
+      - name: Ruff lint
+        run: python -m ruff check .
+      - name: Unit tests
         run: python -m pytest -q

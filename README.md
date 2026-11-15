@@ -1,168 +1,149 @@
 # Bank Account Fraud Detection
-### Time-aware classification · Operational risk ranking · 1% review capacity
 
-**Author:** Ilia Jakhaia  |  **Python · scikit-learn · pandas · NumPy · Matplotlib**
+**Time-aware classification, rare-event evaluation, and investigation-budget analysis**
 
-![Fraud-risk analytics dashboard](assets/portfolio_overview.svg)
+**Ilia Jakhaia** · Python · pandas · scikit-learn · Matplotlib · pytest
 
-## Executive summary
+## Project question
 
-Banks cannot manually investigate every new account application. This project benchmarks
-**logistic regression** and **random forest** on the *synthetic* Bank Account Fraud (BAF)
-Dataset Suite, **Base.csv** (NeurIPS 2022), then asks a business-centered question:
-**If analysts can review only the riskiest 1% of applications, how much fraud can they find?**
+When bank investigators can review **only 1% of new account applications**, how many fraudulent applications can a ranking model prioritize? This project uses the **synthetic Bank Account Fraud (BAF) Dataset Suite, Base.csv** (NeurIPS 2022) to compare logistic regression and random forest under a chronological holdout and an explicit investigation budget.
 
-The held-out test period covers **month index 7**; all model choices were made using
-**month index 6**, after training on **months 0–5**.
+The latest code also includes a **documented, validation-only missingness and regularization experiment**, rather than stopping at two unmodified baselines.
 
-> **Results provenance:** All numerical results below are transcribed from the **executed,
-> user-supplied notebook**, not re-trained on the full dataset in this repository build.
-> Re-running the pipeline will generate fresh metrics and plots in `results/generated/`.
+> **Evidence status.** The baseline numbers below come from an **executed notebook supplied by the project author**. They were *not* recalculated when this repository was prepared. The extended experiment (missing-value indicators, C sweep, and budget sweep) is implemented and unit-tested, but **has not been run on the full benchmark dataset**. Its performance is unknown until the command below is executed with `Base.csv`. The figures in this README are rendered from the historical results JSON, not invented model predictions.
 
-| Key metric | Held-out test result |
+## Recorded baseline results
+
+| Measure | Held-out month 7 |
 |---|---:|
-| Test applications | **96,843** |
-| Test fraud prevalence | **1.475%** |
-| Selected classifier | **Logistic Regression** |
-| Average Precision (AP / area under precision–recall step curve) | **0.1791** |
-| Analyst review capacity (top 1%) | **969 applications** |
-| Fraud cases found in reviewed group | **265** |
-| Precision at 1% capacity | **27.35%** |
-| Recall at 1% capacity | **18.56%** |
-| Enrichment over random review at test prevalence | **18.55×** |
+| Applications evaluated | 96,843 |
+| Fraud cases in test split | 1,428 |
+| Model chosen on validation month 6 | Logistic Regression |
+| Average precision (AP) | **0.1791** |
+| Applications investigated (top 1%) | **969** |
+| Confirmed frauds among reviewed cases | **265** |
+| Precision@1% | **27.35%** |
+| Recall@1% | **18.56%** |
+| Lift over test prevalence | **18.55×** |
 
-**Interpretation:** In the original experiment, reviewing 969 of the highest-scored
-applications surfaced 265 fraudulent ones. That is *ranking efficiency at a fixed budget*,
-not 27% fraud recall and not a real-world savings estimate.
+At a **fixed review capacity**, 265 of 969 top-ranked applications were fraudulent. That is an operational ranking result from the reference run, **not** a 27% overall recall rate and **not** a claim of real-world financial savings. The separate threshold-0.5 results are 7.23% precision and 74.65% recall; they are *not* the top-1% operating point.
 
-## What I built
+## Data understanding
 
-- A complete exploratory analysis of class imbalance, monthly fraud prevalence, and a
-  descriptive foreign-request subgroup comparison.
-- **Forward-in-time data splitting** to reduce look-ahead leakage.
-- Separate, scikit-learn-based preprocessing pipelines for numeric and categorical inputs.
-- Two cost-sensitive classifiers: balanced logistic regression and balanced-subsample random forest.
-- Proper ranking metrics for rare-event classification: **Average Precision**, **Precision@1%**,
-  **Recall@1%**, and **lift** above the split-specific base rate.
-- Validation-only model selection followed by a **single held-out test evaluation**.
-- A reusable CLI, clean Jupyter notebook, unit tests, and GitHub Actions workflow.
+The source dataset contains **1,000,000 synthetic applications**, **11,029 fraud labels** (1.1029%), and the indexed months `0` through `7`.
 
-## Dataset
+![Class distribution chart derived from recorded notebook counts](assets/class_imbalance.png)
 
-**BAF NeurIPS 2022 / `Base.csv`**: 1,000,000 synthetic bank-account applications,
-32 columns including `fraud_bool` and `month`, and **11,029 positive fraud labels**
-(1.1029%). The dataset is designed for research, not for directly identifying fraud
-in a real bank. The dataset is **not included** in this repository due to its size
-and separate redistribution terms.
+The benchmark is highly imbalanced, making raw classification accuracy a misleading sole metric. Fraud prevalence also varies by dataset month, so random train–test splitting would be a poor stand-in for a forward-looking evaluation.
 
-| Period | Month indices | Observations | Fraud prevalence |
-|---|---|---:|---:|
-| Training | 0–5 | 794,989 | 1.0253% |
-| Validation | 6 | 108,168 | 1.3405% |
-| Test | 7 | 96,843 | 1.4746% |
+![Fraud rate by source month index from recorded notebook](assets/monthly_fraud_rate.png)
 
-**Data acquisition:** [Kaggle dataset](https://www.kaggle.com/datasets/sgpjesus/bank-account-fraud-dataset-neurips-2022)
-· [BAF authors / source repository](https://github.com/feedzai/bank-account-fraud)
-· [NeurIPS publication](https://arxiv.org/abs/2211.13358).
+### Chronological experimental design
 
-![Fraud prevalence by month](assets/monthly_fraud_rate.svg)
+| Partition | Month indices | Applications | Recorded fraud rate | Purpose |
+|---|---|---:|---:|---|
+| Training | 0–5 | 794,989 | 1.0253% | Fit models and preprocessing |
+| Validation | 6 | 108,168 | 1.3405% | Compare candidates; select once |
+| Test | 7 | 96,843 | 1.4746% | Report one final selected model |
 
-**Observation:** Recorded prevalence rose from **0.875% (month 2)** to
-**1.475% (month 7)**. Drift should be assessed before deploying a model beyond the benchmark.
+The `fraud_bool` target and `month` are excluded from predictors. Preprocessing lives **inside each scikit-learn pipeline**, so imputation, encoding and scaling parameters are learned from training data alone.
 
-## Model comparison · validation month 6
+## Baselines: validation comparison
 
-![Validation metrics](assets/validation_comparison.svg)
+![Baseline comparison for validation month 6](assets/validation_comparison.png)
 
-| Metric | Logistic regression | Random forest |
+| Validation metric | Logistic Regression | Random Forest |
 |---|---:|---:|
-| Average Precision | **0.1486** | 0.1442 |
+| Average precision | **0.1486** | 0.1442 |
 | Precision@1% | **24.58%** | 23.48% |
 | Recall@1% | **18.34%** | 17.52% |
-| Cases detected among top 1,082 | **266** | 254 |
+| Fraudulent applications in top 1% | **266** | 254 |
 
-The logistic regression model wins on **both AP and operational precision** on the
-validation period. It is frozen as the selected candidate before the final test.
-Neither model was tuned using the held-out test set.
+**Historical selection:** Logistic regression ranked higher on validation AP and Precision@1%. Its recorded test confusion matrix at the *different*, fixed 0.5 threshold is shown below.
 
-## Test-set behavior
+![Original test confusion matrix at threshold 0.5](assets/test_confusion_matrix.png)
 
-![Test confusion matrix](assets/test_confusion_matrix.svg)
+The following precision–recall curve was extracted from the original executed notebook. Unlike the summary plots above, its shape depends on individual model scores, so it was **not** synthesized from aggregate metrics.
 
-At a **0.5 probability threshold**, the selected model records **7.23% precision** and
-**74.65% recall**, with 13,688 legitimate applications flagged. This operating point
-is *not* the same as the **top-1%-by-score policy**, which restricts human reviews to
-969 cases regardless of score magnitude. The threshold 0.5 is a reference baseline,
-not a recommended production threshold.
+![Precision recall curve extracted from historical notebook](assets/original_test_precision_recall_curve.png)
 
-**Precision–recall curve:** The original notebook calculated this curve from held-out prediction scores. The full score-level data are not published, so we intentionally do **not** reconstruct a curve from summary metrics. Run `baf-fraud --data data/Base.csv` to generate an evidence-backed test precision–recall curve in `results/generated/figures/test_precision_recall_curve.png`.
+## What changed beyond the baselines
 
-## Quick start
+The new experiment tests a specific feature-engineering hypothesis without peeking at month 7:
 
-Requirements: Python **3.10+**, approximately enough RAM to train on 1 million
-rows, and a locally downloaded `Base.csv` file.
+1. **Targeted sentinel handling:** For five documented candidate fields, replace *exactly* `-1` with missing and add a missingness indicator. Other negatives, including legitimate negative credit-risk scores or transfer amounts, are preserved.
+2. **Small regularization sweep:** Compare sentinel-aware logistic regression at `C=0.3` and `C=1.0` against the original logistic regression and random forest baselines. Choose using **validation AP**, then validation precision at the specified review budget in a tie.
+3. **Investigation capacity sensitivity:** For the chosen candidate, report Precision@k, Recall@k, fraud counts, and lift for **0.25%, 0.5%, 1%, 2%, and 5%** review capacity. The budget curves are generated from *actual predictions* when the experiment runs.
+4. **Final holdout:** Evaluate the selected candidate once on month 7, after all settings have been chosen from month 6.
+
+**Important:** These are implemented experimental procedures, **not established accuracy improvements**. The final model, test metrics and new charts remain unknown until execution on `Base.csv`. See [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md).
+
+## Reproduce the complete experiment
+
+**Requirements:** Python 3.10+ and the official `Base.csv` dataset. Training several models on ~1M rows may take substantial time and memory.
 
 ```bash
-# 1. Clone your repository and enter it.
+git clone https://github.com/IliaJakha/bank-account-fraud-risk-scoring.git
+cd bank-account-fraud-risk-scoring
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 python -m pip install -e '.[dev,notebook]'
-
-# 2. Download Base.csv from Kaggle into data/Base.csv, then:
-baf-fraud --data data/Base.csv
-
-# Alternative: let kagglehub download the public dataset (requires network):
-baf-fraud --download
-
-# 3. Unit tests (no large dataset required)
-pytest -q
 ```
 
-The command prints validation metrics, chooses a model **without inspecting test results**,
-then writes `results/generated/metrics.json` and five evidence-backed figures.
-Open `notebooks/01_end_to_end_fraud_detection.ipynb` from the repository root for
-an interactive walkthrough.
+Download `Base.csv` from the [BAF Kaggle mirror](https://www.kaggle.com/datasets/sgpjesus/bank-account-fraud-dataset-neurips-2022) into `data/Base.csv` (excluded from version control), then run:
 
-## Repository layout
+```bash
+baf-fraud --data data/Base.csv
+```
+
+Or use `baf-fraud --download` with an internet connection. The run generates genuine evidence artifacts under:
 
 ```text
-assets/                       Redesigned SVG figures from recorded results
-src/baf_fraud/                Data loading, preprocessing, models, metrics, plots, CLI
-notebooks/01_end_to_end_fraud_detection.ipynb
-results/reference_notebook_results.json   Original recorded outputs (provenance stated)
-tests/                        Small synthetic unit tests; no real records
-.github/workflows/ci.yml      CI tests on push and pull request
-data/README.md                Dataset acquisition and licensing caveat
+results/generated/metrics.json
+results/generated/figures/class_imbalance.png
+results/generated/figures/monthly_fraud_rate.png
+results/generated/figures/validation_model_comparison.png
+results/generated/figures/validation_budget_sweep.png
+results/generated/figures/test_budget_sweep.png
+results/generated/figures/test_precision_recall_curve.png
+results/generated/figures/test_confusion_matrix.png
 ```
 
-## Research and deployment limitations
+**Before publishing newly measured numbers**, check `metrics.json` for the selected candidate and full-run provenance. Replace the reference tables and figures only with those *actual outputs*, identifying them as a new experiment; never silently overwrite the historical benchmark results. The notebook at [`notebooks/01_end_to_end_fraud_detection.ipynb`](notebooks/01_end_to_end_fraud_detection.ipynb) runs the same pipeline interactively. Its execution outputs are intentionally left blank until a real `Base.csv` run is available.
 
-1. **Benchmark data are synthetic.** Real financial loss, alert cost, generalization,
-   and operational impact cannot be inferred from these metrics.
-2. **Encoded sentinels:** In BAF, some `-1` values encode missing or not-applicable
-   states; `df.isna().sum() == 0` does *not* mean all features are substantively complete.
-3. **Potential fairness effects:** Applicant attributes such as age and income may
-   create unequal error rates. No fairness audit was completed in the supplied notebook.
-4. **Temporal robustness:** A single held-out month does not prove long-term stability.
-5. **Calibration and cost modeling:** Model scores are not guaranteed to be calibrated
-   event probabilities, especially with class weighting. Review budget is a simplifying
-   assumption; no analyst-hour, loss or economic optimization was measured.
-6. **Reproducibility:** Exact model results can vary with library versions and platform;
-   reference values are historical notebook outputs, not verification of a current run.
+For a quick quality check *without* the full dataset:
 
-### Suggested next experiments
+```bash
+python -m ruff check .
+python -m pytest -q
+python scripts/render_reference_figures.py
+```
 
-- Compare **calibrated** probabilities on a separate temporal calibration window.
-- Add **group-level precision, recall, and false-positive rate** auditing, with
-  privacy and fairness safeguards.
-- Evaluate budget sensitivity at **0.25%, 0.5%, 1%, 2% and 5%** and confidence intervals.
-- Use rolling-origin temporal validation and assess feature drift.
-- Compare boosting models and investigate interpretable risk signals using SHAP
-  only after establishing a stable validation protocol.
+The reference plots can be regenerated from [`results/reference_notebook_results.json`](results/reference_notebook_results.json). Their provenance is explicitly recorded in that file.
 
-## Acknowledgments and citation
+## Repository map
 
-This is an **independent student portfolio analysis** using the BAF benchmark by
-**Jesus et al. (NeurIPS 2022)**. Cite the [original BAF publication](https://arxiv.org/abs/2211.13358)
-when reusing this project. Code in this repository is MIT-licensed; the **dataset
-is governed by its own separate terms**.
+```text
+assets/                             Plain Matplotlib plots from historical notebook metrics
+scripts/render_reference_figures.py Reproduce historical descriptive figures
+src/baf_fraud/                      Clean loading, preprocessing, models, metrics, plots and CLI
+notebooks/01_end_to_end_fraud_detection.ipynb  Interactive experiment (run requires Base.csv)
+results/reference_notebook_results.json        Historical notebook metrics with provenance
+results/generated/                  New experiment outputs after actual local execution
+data/README.md              Dataset acquisition and sentinel caveats
+tests/                              Unit + synthetic smoke tests
+.github/workflows/ci.yml            Ruff lint and pytest on pushes and PRs
+```
+
+## Limitations and responsible use
+
+- **Synthetic benchmark:** Predictive ranking here cannot establish performance in a real bank or quantify losses prevented.
+- **Fairness:** Applicant-related proxies may be associated with unequal outcomes; this project does not certify fairness or suitability for automated account decisions.
+- **Drift:** One chronologically held-out test month cannot establish long-term performance.
+- **Calibration:** Class-weighted model outputs are not guaranteed to be calibrated fraud probabilities.
+- **Sentinel semantics:** The specific `-1` interpretations are a feature-engineering hypothesis that must be validated on the official benchmark and across data variants.
+- **Review capacity:** Investigation costs and false-positive harms were not measured; the selected fractions illustrate staffing constraints.
+
+## Dataset credit
+
+Based on the [Bank Account Fraud Dataset Suite](https://github.com/feedzai/bank-account-fraud) by Jesus et al., NeurIPS 2022 ([publication](https://arxiv.org/abs/2211.13358)). This is an independent educational project. Code is MIT-licensed; **data remain subject to their own terms**.

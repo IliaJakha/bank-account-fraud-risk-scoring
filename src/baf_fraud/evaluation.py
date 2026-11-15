@@ -1,16 +1,21 @@
-"""Fraud metrics for binary classification and limited review capacity."""
+"""Fraud metrics for binary classification under investigation-capacity limits."""
+
 import math
+
 import numpy as np
-from sklearn.metrics import (average_precision_score, confusion_matrix, f1_score,
-                             precision_score, recall_score)
+from sklearn.metrics import (
+    average_precision_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+)
+
+DEFAULT_BUDGETS = (0.0025, 0.005, 0.01, 0.02, 0.05)
 
 
 def capacity_metrics(y_true, scores, capacity=0.01):
-    """Score highest-risk ceil(n*capacity) cases; ties break by original row position.
-
-    Returns detection count, precision and recall at capacity, and enrichment
-    relative to *the evaluated split's* fraud prevalence.
-    """
+    """Review top ceil(n*capacity) scores; break ties by original row order."""
     if not 0 < capacity <= 1:
         raise ValueError("Capacity must be within (0, 1]")
     y = np.asarray(y_true, dtype=int)
@@ -36,7 +41,7 @@ def capacity_metrics(y_true, scores, capacity=0.01):
 
 
 def classification_metrics(y_true, scores, threshold=0.5):
-    """Compute standard threshold metrics plus threshold-free Average Precision."""
+    """Threshold metrics plus the threshold-free Average Precision (AP)."""
     y = np.asarray(y_true, dtype=int)
     p = np.asarray(scores, dtype=float)
     predicted = (p >= threshold).astype(int)
@@ -51,5 +56,19 @@ def classification_metrics(y_true, scores, threshold=0.5):
 
 
 def evaluate_model(y_true, scores, capacity=0.01):
-    return {**classification_metrics(y_true, scores),
-            **capacity_metrics(y_true, scores, capacity)}
+    """Evaluate AP, 0.5-threshold metrics and top-budget investigation metrics."""
+    return {
+        **classification_metrics(y_true, scores),
+        **capacity_metrics(y_true, scores, capacity),
+    }
+
+
+def budget_sweep(y_true, scores, capacities=DEFAULT_BUDGETS):
+    """Describe the same ranking at several review budgets, no model selection."""
+    return {
+        f"{capacity:.2%}": {
+            "capacity_fraction": capacity,
+            **capacity_metrics(y_true, scores, capacity),
+        }
+        for capacity in capacities
+    }

@@ -1,5 +1,10 @@
 {
-  "provenance": "Recorded outputs from user-supplied Untitled.ipynb (Nov 2026); full experiment not re-executed in this repository build",
+  "provenance": {
+    "kind": "historical_notebook_outputs",
+    "source_artifact": "Untitled.ipynb supplied by project author (November 2026)",
+    "computed_in_this_revision": false,
+    "note": "Metrics were recorded from the author-supplied executed notebook. The new sentinel experiment has not yet been run on the full Base.csv dataset. Do not treat these reference metrics as its performance."
+  },
   "dataset": {
     "rows": 1000000,
     "columns": 32,
