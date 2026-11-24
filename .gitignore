@@ -14,4 +14,5 @@ outputs/subgraph_sets.pkl
 outputs/unit5_test_predictions.csv
 outputs/elliptic2_features.csv
 outputs/research_extension/ibm_activity_feature_table.csv
-outputs/phase1_verify/
+outputs/phase1_verify/*
+!outputs/phase1_verify/regression.csv
