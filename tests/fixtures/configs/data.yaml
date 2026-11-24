@@ -1,0 +1,36 @@
+url_template: https://huggingface.co/datasets/{repo}/resolve/{revision}/{name}
+paths:
+  ibm_dir: data/ibm
+  elliptic2_dir: data/elliptic2
+  outputs_dir: outputs
+sources:
+  HI-Small_Trans.csv:
+    repo: OsamaMIT/IBM-AML-HI
+    revision: fixture
+    subdir: ibm
+    size_bytes: 34397
+    sha256: a2a38c6eab95a47a89be3a509986b1116c1f9a8835d0742a6f6655877146a7ed
+  HI-Small_Patterns.txt:
+    repo: OsamaMIT/IBM-AML-HI
+    revision: fixture
+    subdir: ibm
+    size_bytes: 3684
+    sha256: 29fb70b6d8faa432e2ab94144a1bad4f60e60e7363cec3573f9ab5602c6691b0
+  connected_components.csv:
+    repo: mendozzzz/elliptic2-data-set
+    revision: fixture
+    subdir: elliptic2
+    size_bytes: 414
+    sha256: 59628cc5de55c6e2a0ab29f45283c95c4c68eb131dab6fccd336c47056496aa6
+  nodes.csv:
+    repo: mendozzzz/elliptic2-data-set
+    revision: fixture
+    subdir: elliptic2
+    size_bytes: 916
+    sha256: 75855e7ab4d6b0ee07d82836a75cef58745f986bd27eadd97737068a8005bc3c
+  edges.csv:
+    repo: mendozzzz/elliptic2-data-set
+    revision: fixture
+    subdir: elliptic2
+    size_bytes: 1124
+    sha256: 4674590c1741cdf1b95ba18f2d93869c62b56e95c01145c2d6ba4f178d19f18f

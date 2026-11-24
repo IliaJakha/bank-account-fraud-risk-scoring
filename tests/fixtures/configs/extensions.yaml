@@ -1,0 +1,20 @@
+seed: 2026
+embargo_minutes: 60
+min_predicted_positives_for_precision: 1
+min_precision_target: 0.5
+permutation_repeats: 2
+account_disjoint_retrain:
+  train_frac: 0.55
+  val_frac: 0.2
+activity_experiment:
+  extra_trees:
+    n_estimators: 20
+    min_samples_leaf: 1
+    class_weight: balanced
+base_rate_illustration:
+  tpr: 0.8
+  fpr: 0.02
+  prevalences:
+  - 0.001
+  - 0.01
+  - 0.05

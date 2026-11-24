@@ -1,0 +1,28 @@
+seeds:
+- 0
+- 1
+test_size: 0.3
+validation_fraction: 0.25
+max_nodes_restricted: 10
+size_cols:
+- n_nodes
+- n_edges
+models:
+  SizeOnly:
+    feature_set: size
+    max_iter: 500
+    class_weight: balanced
+  LogReg:
+    feature_set: all
+    max_iter: 500
+    class_weight: balanced
+  RandomForest:
+    feature_set: all
+    n_estimators: 20
+    min_samples_leaf: 1
+    class_weight: balanced_subsample
+  GradBoosting:
+    feature_set: all
+    max_iter: 30
+    learning_rate: 0.1
+    class_weight: balanced
