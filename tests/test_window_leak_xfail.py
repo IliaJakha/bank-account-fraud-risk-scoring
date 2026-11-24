@@ -4,16 +4,11 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from aml_graph.data import IBM_COLS
 from aml_graph.sampling import EdgeIndex, build_ibm_positives, sample_ibm_negatives
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="Phase 2: positive and negative IBM windows use asymmetric construction rules",
-)
 def test_ibm_positive_and_negative_windows_follow_same_rule() -> None:
     """Verify positive and negative IBM candidate windows follow the same placement rule.
 

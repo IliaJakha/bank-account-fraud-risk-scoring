@@ -1,0 +1,24 @@
+seed: 2026
+
+sampler:
+  n_candidates: 10000
+  positive_seed_probability: 0.25
+  node_sizes: [4, 6, 8, 10, 12]
+  windows_minutes: [120, 240, 480]
+  max_tries_multiplier: 15
+
+splits:
+  min_test_positives: 30
+  rolling_origin:
+    n_folds: 4
+    embargo_minutes: 480
+    # Active 10-day simulator window ends 2022-09-10 23:59; fold 4 covers late period
+    first_train_quantile: 0.30
+    val_quantile_width: 0.12
+  account_group:
+    n_folds: 4
+
+evaluation:
+  bootstrap_resamples: 600
+  paired_bootstrap_resamples: 1000
+  models: ["SizeOnly", "LogReg", "RandomForest", "GradBoosting", "ExtraTrees"]

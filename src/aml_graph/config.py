@@ -28,7 +28,7 @@ def load_yaml(path: Path) -> dict[str, Any]:
 
 def load_all_configs(config_dir: Path) -> dict[str, dict[str, Any]]:
     """Load all standard experiment YAML files from config_dir."""
-    names = ("data", "sampling", "benchmark", "tuning", "extensions")
+    names = ("data", "sampling", "benchmark", "tuning", "extensions", "phase2")
     loaded: dict[str, dict[str, Any]] = {}
     for name in names:
         p = config_dir / f"{name}.yaml"

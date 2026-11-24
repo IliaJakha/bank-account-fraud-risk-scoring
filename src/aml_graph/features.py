@@ -79,6 +79,15 @@ def graph_features(
 
 
 FEATURES: list[str] = list(graph_features([1, 2], [(1, 2)]).keys())
+ACTIVITY_COLS: list[str] = [
+    "n_transactions",
+    "transactions_per_hour",
+    "repeat_pair_fraction",
+    "dominant_pair_fraction",
+    "active_span_minutes",
+    "median_interarrival_minutes",
+]
+AUGMENTED_COLS: list[str] = FEATURES + ACTIVITY_COLS
 
 
 def build_feature_tables(

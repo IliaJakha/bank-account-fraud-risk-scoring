@@ -1,0 +1,23 @@
+seed: 2026
+
+sampler:
+  n_candidates: 120
+  positive_seed_probability: 0.45
+  node_sizes: [3]
+  windows_minutes: [60]
+  max_tries_multiplier: 30
+
+splits:
+  min_test_positives: 2
+  rolling_origin:
+    n_folds: 3
+    embargo_minutes: 60
+    first_train_quantile: 0.25
+    val_quantile_width: 0.15
+  account_group:
+    n_folds: 3
+
+evaluation:
+  bootstrap_resamples: 25
+  paired_bootstrap_resamples: 40
+  models: ["SizeOnly", "LogReg", "RandomForest", "GradBoosting", "ExtraTrees"]

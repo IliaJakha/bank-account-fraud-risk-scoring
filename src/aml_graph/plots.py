@@ -291,4 +291,217 @@ def generate_all_reports(out_dir: Path, ext_cfg: dict[str, Any]) -> list[str]:
             plt.close(fig)
             generated.append(str(p))
 
+    generated.extend(plot_phase2_figures(out_dir))
     return generated
+
+
+def plot_phase2_figures(out_dir: Path) -> list[str]:
+    """Generate Phase 2 before/after construction-bias, window-leak, and multi-fold figures."""
+    p2_dir = out_dir / "phase2"
+    made: list[str] = []
+    if not p2_dir.exists():
+        return made
+
+    ba_csv = p2_dir / "before_after_comparison.csv"
+    if ba_csv.exists():
+        ba = pd.read_csv(ba_csv)
+        if not ba.empty and "ro_lift_mean" in ba.columns:
+            fig, axes = plt.subplots(1, 2, figsize=(14.5, 5.2))
+            x = np.arange(len(ba))
+            w = 0.26
+            m_labels = [m.replace("StructPlusActivity_20", "Struct+Act (20)") for m in ba["model"]]
+
+            # Panel (a): Lift over prevalence (log scale across 1x..18x range)
+            ax = axes[0]
+            ax.bar(
+                x - w,
+                ba["legacy_lift"],
+                w,
+                label="Legacy (Attempt vs BFS)",
+                color="#D95F02",
+                alpha=0.85,
+            )
+            ax.bar(
+                x,
+                ba["ro_lift_mean"],
+                w,
+                label="Phase 2 Label-Blind (Unweighted)",
+                color="#1B9E77",
+                alpha=0.85,
+            )
+            ax.bar(
+                x + w,
+                ba["ro_ipw_lift_mean"],
+                w,
+                label="Phase 2 Label-Blind (IPW Pop.)",
+                color="#7570B3",
+                alpha=0.85,
+            )
+            ax.axhline(1.0, color="grey", ls="--", lw=1, label="Random (1.0×)")
+            ax.set_yscale("log")
+            ax.set_xticks(x, m_labels, rotation=22, ha="right", fontsize=8.5)
+            ax.set_ylabel("AP ÷ Prevalence (log scale)")
+            ax.set_title("(a) Ranking lift: legacy artifact vs label-blind construction")
+            ax.legend(frameon=False, fontsize=8)
+            ax.grid(axis="y", alpha=0.2)
+
+            # Panel (b): ROC-AUC before vs after (Rolling-Origin & Account-Group)
+            ax2 = axes[1]
+            ax2.bar(
+                x - w,
+                ba["legacy_roc_auc"],
+                w,
+                label="Legacy (Edge-Purged)",
+                color="#D95F02",
+                alpha=0.85,
+            )
+            ax2.bar(
+                x,
+                ba["ro_roc_auc_mean"],
+                w,
+                label="Phase 2 Rolling-Origin (4 folds)",
+                color="#1B9E77",
+                alpha=0.85,
+            )
+            if "ag_roc_auc_mean" in ba.columns:
+                ax2.bar(
+                    x + w,
+                    ba["ag_roc_auc_mean"],
+                    w,
+                    label="Phase 2 Account-Group (4 folds)",
+                    color="#4C78A8",
+                    alpha=0.85,
+                )
+            ax2.axhline(0.5, color="grey", ls="--", lw=1, label="Random (0.50)")
+            ax2.set_ylim(0.35, 1.03)
+            ax2.set_xticks(x, m_labels, rotation=22, ha="right", fontsize=8.5)
+            ax2.set_ylabel("ROC-AUC")
+            ax2.set_title("(b) ROC-AUC: legacy vs rolling-origin & account-disjoint folds")
+            ax2.legend(frameon=False, fontsize=8)
+            ax2.grid(axis="y", alpha=0.2)
+
+            for a in axes:
+                for sp in ("top", "right"):
+                    a.spines[sp].set_visible(False)
+            fig.tight_layout()
+            p_ba = p2_dir / "before_vs_after_benchmark.png"
+            fig.savefig(p_ba, dpi=170, bbox_inches="tight")
+            plt.close(fig)
+            made.append(str(p_ba))
+
+    wa_csv = p2_dir / "window_leak_audit_summary.csv"
+    if wa_csv.exists() and ba_csv.exists():
+        wa = pd.read_csv(wa_csv)
+        ba = pd.read_csv(ba_csv).set_index("model")
+        if len(wa) >= 2:
+            fig, axes = plt.subplots(1, 2, figsize=(13, 4.8))
+            ax = axes[0]
+            piv = wa.pivot(index="benchmark", columns="class_label", values="mean_span_ratio")
+            order_b = [
+                b
+                for b in ("legacy_clamped_attempt_window", "phase2_symmetric_window")
+                if b in piv.index
+            ]
+            piv = piv.reindex(order_b)
+            xb = np.arange(len(piv))
+            ax.bar(xb - 0.16, piv[0], 0.30, label="Licit (label=0)", color="#4C78A8")
+            ax.bar(xb + 0.16, piv[1], 0.30, label="Suspicious (label=1)", color="#E45756")
+            ax.set_xticks(
+                xb,
+                ["Legacy\n(attempt-clamped)", "Phase 2\n(symmetric seed window)"][: len(xb)],
+            )
+            ax.set_ylim(0, 1.05)
+            ax.set_ylabel("Mean (active_span ÷ window_duration)")
+            ax.set_title("(a) Window-span ratio by class (leakage audit)")
+            ax.legend(frameon=False, fontsize=8.5)
+            ax.grid(axis="y", alpha=0.2)
+
+            ax2 = axes[1]
+            if "StructPlusActivity_20" in ba.index and "ro_roc_auc_mean" in ba.columns:
+                models_cmp = ["LogReg", "GradBoosting", "StructPlusActivity_20"]
+                present_m = [m for m in models_cmp if m in ba.index]
+                xm = np.arange(len(present_m))
+                ax2.bar(
+                    xm - 0.16,
+                    [ba.loc[m, "legacy_roc_auc"] for m in present_m],
+                    0.30,
+                    label="Legacy window rule",
+                    color="#D95F02",
+                )
+                ax2.bar(
+                    xm + 0.16,
+                    [ba.loc[m, "ro_roc_auc_mean"] for m in present_m],
+                    0.30,
+                    label="Symmetric window rule (Phase 2)",
+                    color="#1B9E77",
+                )
+                ax2.axhline(0.5, color="grey", ls="--", lw=1)
+                ax2.set_ylim(0.4, 1.03)
+                ax2.set_xticks(
+                    xm,
+                    [m.replace("StructPlusActivity_20", "20-Feat (Struct+Act)") for m in present_m],
+                )
+                ax2.set_ylabel("Outer-test ROC-AUC")
+                ax2.set_title("(b) Activity-feature signal before vs after window fix")
+                ax2.legend(frameon=False, fontsize=8.5)
+                ax2.grid(axis="y", alpha=0.2)
+
+            for a in axes:
+                for sp in ("top", "right"):
+                    a.spines[sp].set_visible(False)
+            fig.tight_layout()
+            p_wa = p2_dir / "window_leak_audit.png"
+            fig.savefig(p_wa, dpi=170, bbox_inches="tight")
+            plt.close(fig)
+            made.append(str(p_wa))
+
+    fm_csv = p2_dir / "fold_metrics.csv"
+    if fm_csv.exists():
+        fm = pd.read_csv(fm_csv)
+        ok = fm[fm["status"] == "ok"]
+        if not ok.empty:
+            fig, axes = plt.subplots(1, 2, figsize=(13.5, 4.6), sharey=True)
+            show_models = ["SizeOnly", "LogReg", "GradBoosting", "StructPlusActivity_20"]
+            colors = {
+                "SizeOnly": "#9E9E9E",
+                "LogReg": "#4C78A8",
+                "GradBoosting": "#1B9E77",
+                "StructPlusActivity_20": "#E45756",
+            }
+            for ax, (reg, title) in zip(
+                axes,
+                [
+                    ("rolling_origin", "(a) Rolling-origin temporal folds (embargoed)"),
+                    ("account_group", "(b) Connected-component account-group folds"),
+                ],
+                strict=False,
+            ):
+                sub = ok[ok["regime"] == reg]
+                for m in show_models:
+                    sm = sub[sub["model"] == m].sort_values("fold")
+                    if not sm.empty:
+                        lbl = "Struct+Act (20)" if m == "StructPlusActivity_20" else m
+                        ax.plot(
+                            sm["fold"],
+                            sm["roc_auc"],
+                            marker="o",
+                            lw=1.8,
+                            color=colors[m],
+                            label=lbl,
+                        )
+                ax.axhline(0.5, color="grey", ls="--", lw=1)
+                ax.set_xticks(sorted(sub["fold"].unique()))
+                ax.set_xlabel("Fold index")
+                ax.set_title(title)
+                ax.grid(alpha=0.2)
+                for sp in ("top", "right"):
+                    ax.spines[sp].set_visible(False)
+            axes[0].set_ylabel("Test ROC-AUC")
+            axes[0].legend(frameon=False, fontsize=8.5)
+            fig.tight_layout()
+            p_fm = p2_dir / "rolling_vs_account_folds.png"
+            fig.savefig(p_fm, dpi=170, bbox_inches="tight")
+            plt.close(fig)
+            made.append(str(p_fm))
+
+    return made

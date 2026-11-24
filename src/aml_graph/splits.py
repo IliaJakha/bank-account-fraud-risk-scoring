@@ -1,7 +1,8 @@
-"""Temporal, stratified, overlap-purged, embargo, and account-disjoint splits."""
+"""Temporal, stratified, overlap-purged, rolling-origin, and account-component splits."""
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any
 
 import numpy as np
@@ -191,3 +192,208 @@ def account_disjoint_partition(
             seen_test.update(nodes_k)
 
     return np.asarray(fit_i, dtype=int), np.asarray(val_i, dtype=int), np.asarray(test_i, dtype=int)
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Splits: Rolling-Origin Temporal Folds & Account-Component Group Folds
+# ---------------------------------------------------------------------------
+
+
+def rolling_origin_splits(
+    df: pd.DataFrame,
+    edge_map: dict[str, np.ndarray],
+    n_folds: int = 4,
+    embargo_minutes: int = 480,
+    first_train_quantile: float = 0.30,
+    val_quantile_width: float = 0.12,
+) -> list[dict[str, Any]]:
+    """Construct >= 3 expanding-window temporal folds with embargo gaps and non-overlapping tests.
+
+    Guarantees:
+      1. `n_folds >= 3` strictly non-overlapping chronological test intervals.
+      2. For every fold: `min(val.t_start) > max(train.t_end) + embargo_minutes` and
+         `min(test.t_start) > max(val.t_end) + embargo_minutes`.
+      3. Pairwise zero shared transaction IDs across `(train, val, test)` in every fold,
+         and zero shared subgraph indices across `{test_0, ..., test_{K-1}}`.
+    """
+    if n_folds < 3:
+        raise ValueError("rolling_origin_splits requires n_folds >= 3")
+
+    t_start = df["t_start"].to_numpy(dtype=np.int64)
+    t_end = df["t_end"].to_numpy(dtype=np.int64)
+    sg_ids = df["sg_id"].astype(str).to_numpy()
+
+    q_test_start = float(first_train_quantile + val_quantile_width)
+    if q_test_start >= 0.85:
+        raise ValueError("first_train_quantile + val_quantile_width leaves insufficient test range")
+
+    test_quantiles = np.linspace(q_test_start, 1.0, n_folds + 1)
+    used_test_indices: set[int] = set()
+    folds: list[dict[str, Any]] = []
+
+    for k in range(n_folds):
+        q_val_hi = float(test_quantiles[k])
+        q_train_hi = max(0.05, q_val_hi - float(val_quantile_width))
+        q_test_hi = float(test_quantiles[k + 1])
+
+        train_cut_t = int(np.quantile(t_start, q_train_hi))
+        val_cut_t = int(np.quantile(t_start, q_val_hi))
+        test_cut_t = (
+            int(t_start.max()) if k == n_folds - 1 else int(np.quantile(t_start, q_test_hi))
+        )
+
+        train_idx = np.flatnonzero(t_end <= train_cut_t)
+        if train_idx.size == 0:
+            train_idx = np.flatnonzero(t_start <= train_cut_t)
+        train_max_end = int(t_end[train_idx].max()) if train_idx.size else train_cut_t
+
+        seen_train_edges: set[int] = set()
+        for pos in train_idx:
+            seen_train_edges.update(edge_map[sg_ids[pos]].tolist())
+
+        val_candidates = np.flatnonzero(
+            (t_start > train_max_end + int(embargo_minutes)) & (t_end <= val_cut_t)
+        )
+        if val_candidates.size == 0:
+            # Fallback if val_cut_t was tighter than embargo: advance val window past embargo
+            val_candidates = np.flatnonzero(
+                (t_start > train_max_end + int(embargo_minutes))
+                & (t_start <= val_cut_t + int(embargo_minutes))
+            )
+        val_idx = np.asarray(
+            [
+                p
+                for p in val_candidates
+                if seen_train_edges.isdisjoint(edge_map[sg_ids[p]].tolist())
+            ],
+            dtype=int,
+        )
+        val_max_end = (
+            int(t_end[val_idx].max()) if val_idx.size else (train_max_end + int(embargo_minutes))
+        )
+
+        seen_train_val_edges = set(seen_train_edges)
+        for pos in val_idx:
+            seen_train_val_edges.update(edge_map[sg_ids[pos]].tolist())
+
+        test_lo_bound = max(val_cut_t, val_max_end + int(embargo_minutes))
+        test_candidates = np.flatnonzero((t_start > test_lo_bound) & (t_start <= test_cut_t))
+        test_idx = np.asarray(
+            [
+                p
+                for p in test_candidates
+                if p not in used_test_indices
+                and seen_train_val_edges.isdisjoint(edge_map[sg_ids[p]].tolist())
+            ],
+            dtype=int,
+        )
+        used_test_indices.update(test_idx.tolist())
+
+        folds.append(
+            {
+                "fold": k,
+                "regime": "rolling_origin",
+                "fit_idx": train_idx,
+                "val_idx": val_idx,
+                "test_idx": test_idx,
+                "embargo_minutes": int(embargo_minutes),
+                "train_max_end": train_max_end,
+                "val_min_start": int(t_start[val_idx].min()) if val_idx.size else None,
+                "val_max_end": val_max_end,
+                "test_min_start": int(t_start[test_idx].min()) if test_idx.size else None,
+                "test_max_end": int(t_end[test_idx].max()) if test_idx.size else None,
+            }
+        )
+    return folds
+
+
+def account_component_group_splits(
+    df: pd.DataFrame,
+    node_map: dict[str, np.ndarray],
+    edge_map: dict[str, np.ndarray] | None = None,
+    n_folds: int = 4,
+) -> list[dict[str, Any]]:
+    """Group subgraphs by connected components of shared accounts and partition into K folds.
+
+    Every connected component of the 'subgraphs share an account (or transaction)' graph
+    is placed 100% inside a single fold. Across fit, validation, and test in every fold:
+      - Zero accounts are shared.
+      - Zero transactions are shared.
+      - 100% of subgraphs are retained (zero bridge-dropping bias).
+    """
+    if n_folds < 3:
+        raise ValueError("account_component_group_splits requires n_folds >= 3 (fit, val, test)")
+
+    n_sub = len(df)
+    parent = np.arange(n_sub, dtype=np.int64)
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = int(parent[i])
+        return i
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    first_sub_for_node: dict[int, int] = {}
+    first_sub_for_edge: dict[int, int] = {}
+    sg_ids = df["sg_id"].astype(str).tolist()
+    labels = df["label"].to_numpy(dtype=int)
+
+    for idx_i, sg in enumerate(sg_ids):
+        for u in node_map[sg].tolist():
+            iu = int(u)
+            if iu in first_sub_for_node:
+                union(idx_i, first_sub_for_node[iu])
+            else:
+                first_sub_for_node[iu] = idx_i
+        if edge_map is not None and sg in edge_map:
+            for e in edge_map[sg].tolist():
+                ie = int(e)
+                if ie in first_sub_for_edge:
+                    union(idx_i, first_sub_for_edge[ie])
+                else:
+                    first_sub_for_edge[ie] = idx_i
+
+    comp_members: dict[int, list[int]] = defaultdict(list)
+    for idx_i in range(n_sub):
+        comp_members[find(idx_i)].append(idx_i)
+
+    # Sort components largest-first for deterministic balanced bin packing across K folds
+    sorted_comps = sorted(
+        comp_members.values(),
+        key=lambda members: (-len(members), min(members)),
+    )
+    fold_bins: list[list[int]] = [[] for _ in range(n_folds)]
+    fold_sizes = [0] * n_folds
+    fold_pos = [0] * n_folds
+
+    for members in sorted_comps:
+        pos_in_comp = int(labels[members].sum())
+        # Assign entire component to the lightest fold (tie-break by fewest positives)
+        target_f = min(range(n_folds), key=lambda f: (fold_sizes[f], fold_pos[f], f))
+        fold_bins[target_f].extend(members)
+        fold_sizes[target_f] += len(members)
+        fold_pos[target_f] += pos_in_comp
+
+    fold_arrays = [np.asarray(sorted(b), dtype=int) for b in fold_bins]
+    folds: list[dict[str, Any]] = []
+    for k in range(n_folds):
+        test_idx = fold_arrays[k]
+        val_idx = fold_arrays[(k - 1) % n_folds]
+        fit_parts = [fold_arrays[j] for j in range(n_folds) if j not in (k, (k - 1) % n_folds)]
+        fit_idx = np.sort(np.concatenate(fit_parts)) if fit_parts else np.empty(0, dtype=int)
+        folds.append(
+            {
+                "fold": k,
+                "regime": "account_group",
+                "fit_idx": fit_idx,
+                "val_idx": val_idx,
+                "test_idx": test_idx,
+                "n_components_total": len(sorted_comps),
+            }
+        )
+    return folds
