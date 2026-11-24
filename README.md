@@ -1,10 +1,52 @@
 # Structural Graph Features for Anti-Money-Laundering Detection — IBM AML HI-Small vs Elliptic2
 
+[![CI](https://github.com/IliaJakha/bank-account-fraud-risk-scoring/actions/workflows/ci.yml/badge.svg)](https://github.com/IliaJakha/bank-account-fraud-risk-scoring/actions/workflows/ci.yml)
+
 An end-to-end comparative study evaluating whether 14 interpretable directed-graph topological features can distinguish suspicious from licit transaction subgraphs within synthetic banking data (**IBM AML HI-Small**) and whether models trained in one domain transfer to real-world Bitcoin cluster components (**Elliptic2**).
 
 ## Research Question
 
 > Can structural features of directed transaction subgraphs distinguish suspicious from licit activity, and does a model trained on synthetic bank transfers (IBM AML HI-Small) transfer to real cryptocurrency cluster graphs (Elliptic2)?
+
+---
+
+## Quickstart
+
+```bash
+git clone https://github.com/IliaJakha/bank-account-fraud-risk-scoring.git
+cd bank-account-fraud-risk-scoring
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+
+# Run unit & fixture integration tests + Ruff linter (offline, ~10s)
+make lint
+make test
+
+# Full end-to-end pipeline (~500 MB auto-download on first run, SHA-256 verified)
+make data         # Download & verify pinned Hugging Face dataset files
+make features     # Build IBM (7,770) & Elliptic2 (121,810) subgraph feature tables
+make experiments  # Run 3-seed benchmark, Unit 4/5 tuning & calibration, Extensions 1-12
+make report       # Regenerate evaluation and domain-shift figures from CSVs
+```
+
+You can also invoke the CLI directly via `python -m aml_graph {data,features,experiments,report,test} --config-dir configs --output-dir outputs`.
+
+### Run with Docker
+
+```bash
+# Build reproducible container image
+docker build -t aml-graph:latest .
+
+# Run offline linter & pytest suite inside the container
+docker run --rm aml-graph:latest test
+
+# Run full pipeline with mounted host data/ and outputs/ directories
+mkdir -p data outputs
+docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/outputs:/app/outputs" aml-graph:latest data
+docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/outputs:/app/outputs" aml-graph:latest features
+docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/outputs:/app/outputs" aml-graph:latest experiments
+docker run --rm -v "$(pwd)/data:/app/data" -v "$(pwd)/outputs:/app/outputs" aml-graph:latest report
+```
 
 ---
 
@@ -16,7 +58,7 @@ An end-to-end comparative study evaluating whether 14 interpretable directed-gra
 |---|---:|---:|---:|---:|---:|
 | **GradBoosting** | **0.6218** | 0.5227–0.7199 | **0.8884** | **0.6116** | 0.0990 → 0.0257 |
 | **ExtraTrees** | 0.5798 | 0.4769–0.6874 | 0.8849 | 0.5638 (0.5733 cal.) | 0.1026 → 0.0313 |
-| **LogReg** | 0.5677 | 0.4643–0.6677 | 0.8769 | 0.4848 | 0.1159 → 0.0315 |
+| **LogReg** *(val-selected)* | 0.5677 | 0.4643–0.6677 | 0.8769 | 0.4848 | 0.1159 → 0.0315 |
 | **RandomForest** | 0.5638 | 0.4581–0.6712 | 0.8751 | 0.5638 | 0.0880 → 0.0290 |
 
 - **Beyond graph size:** The archival 3-seed `SizeOnly` baseline (`n_nodes`, `n_edges`) reaches only AP `0.253` (F1 `0.365`), and `topology_excluding_size` (12 features) achieves test AP `0.5657` vs `0.5677` for all 14 features (`LogReg`), confirming genuine structural signal.
@@ -85,51 +127,61 @@ Each subgraph is represented as a simple directed graph `nx.DiGraph` (self-loops
 
 ---
 
+## Package & Repository Layout
+
+```text
+bank-account-fraud-risk-scoring/
+├── .github/workflows/ci.yml             # GitHub Actions CI (Python 3.12 & 3.13, Ruff + pytest)
+├── configs/
+│   ├── data.yaml                        # Pinned HF commit hashes & SHA-256 checksums
+│   ├── sampling.yaml                    # Legacy BFS & Common-BFS sampling parameters
+│   ├── benchmark.yaml                   # 3-seed baseline configuration
+│   ├── tuning.yaml                      # Unit 4/5 hyperparameter grids & Platt calibration
+│   └── extensions.yaml                  # Extensions 1–12 parameters
+├── src/aml_graph/
+│   ├── config.py                        # YAML loading, config SHA-256 hashing & provenance JSON
+│   ├── data.py                          # SHA-256 verification & raw IBM/Elliptic2 loaders
+│   ├── sampling.py                      # EdgeIndex, label-blind guard & subgraph samplers
+│   ├── features.py                      # 14 topological features & IBM activity features
+│   ├── splits.py                        # Purged, chronological-embargo & account-disjoint splits
+│   ├── models.py                        # Baseline & tuned estimators + ValidationPlattCalibrator
+│   ├── evaluate.py                      # Evaluation metrics, bootstrap CIs & experiment runners
+│   ├── plots.py                         # Report figure generators reading directly from CSVs
+│   └── cli.py                           # CLI entrypoint (`python -m aml_graph ...`)
+├── tests/
+│   ├── fixtures/                        # Committed mini IBM & Elliptic2 fixture + configs for CI
+│   ├── test_features.py                 # Hand-built graph topologies & Gini edge cases
+│   ├── test_splits.py                   # Transaction-disjoint & account-disjoint guarantees
+│   ├── test_sampling_and_data.py        # SHA-256 corruption checks & no-label-use guarantees
+│   ├── test_window_leak_xfail.py        # xfail(Phase 2) test documenting legacy window asymmetry
+│   └── test_cli_fixture.py              # End-to-end offline CLI pipeline integration test
+├── notebooks/
+│   └── legacy/                          # Archived pre-refactor 81-cell monolithic notebook
+├── AML_Graph_Structure_Transfer.ipynb   # Concise presentation notebook loading saved outputs
+├── outputs/
+│   ├── phase1_verify/regression.csv     # Notebook vs refactored package numerical comparison
+│   ├── eda_*.png / eda_*.csv            # Exploratory data analysis tables and plots
+│   ├── results_raw.csv / results_summary.csv / results_lift.png
+│   ├── unit4_*.csv / unit5_*.csv / unit5_*.png / unit6_*.png
+│   └── research_extension/              # Extensions 1–12 tables, figures & summary JSON
+├── Dockerfile
+├── Makefile
+├── pyproject.toml
+├── requirements.txt
+└── LICENSE
+```
+
+*(Large regenerable intermediates — `data/`, `outputs/subgraph_sets.pkl`, `outputs/elliptic2_features.csv`, `outputs/unit5_test_predictions.csv`, and `outputs/research_extension/ibm_activity_feature_table.csv` — are excluded via `.gitignore` and recreated on run.)*
+
+---
+
 ## Limitations
 
-- Positive and negative IBM subgraphs are produced by different mechanisms (documented laundering attempts vs licit BFS neighborhoods).
+- Positive and negative IBM subgraphs are produced by different mechanisms (documented laundering attempts vs licit BFS neighborhoods), and positive observation windows clamp `[t0, t1]` to attempt endpoints (`test_window_leak_xfail.py`).
 - IBM account graphs and Elliptic2 cluster components differ in node semantics and label definitions.
 - IBM is evaluated on a single chronological split, so bootstrap confidence intervals reflect test-sample uncertainty rather than cross-period temporal variance.
 - Positive rates in the constructed samples (`0.0498` IBM test, `0.0227` Elliptic2 test) do not reflect real-world AML deployment base rates.
 - This is an educational/research benchmark, not a production AML alerting system.
-
----
-
-## How to Reproduce
-
-```bash
-git clone https://github.com/IliaJakha/bank-account-fraud-risk-scoring.git
-cd bank-account-fraud-risk-scoring
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-jupyter notebook AML_Graph_Structure_Transfer.ipynb
-```
-
-Run **Kernel → Restart & Run All**. On the first run, the data-acquisition cell automatically downloads the five source files (~500 MB total) from Hugging Face into `data/`. A full end-to-end execution takes approximately 5–10 minutes.
-
----
-
-## Repository Structure
-
-```text
-bank-account-fraud-risk-scoring/
-├── AML_Graph_Structure_Transfer.ipynb   # Main executed notebook (81 cells, 0 errors)
-├── README.md
-├── requirements.txt
-├── LICENSE
-├── .gitignore
-└── outputs/
-    ├── eda_*.png / eda_*.csv            # Transaction & feature EDA tables and figures
-    ├── ibm_features.csv                 # Extracted 14-feature IBM subgraph table
-    ├── prep_log.json                    # Dataset & construction audit log
-    ├── results_raw.csv / results_summary.csv / results_lift.png
-    ├── unit4_tuning_candidates.csv / unit4_selected_hyperparameters.csv
-    ├── unit5_holdout_comparison.csv / unit5_*.png
-    ├── unit6_hypothetical_base_rate_sensitivity.png
-    └── research_extension/              # Extensions 1–12 tables, figures & summary JSON
-```
-
-*(Large regenerable intermediates — `data/`, `outputs/subgraph_sets.pkl`, `outputs/elliptic2_features.csv`, `outputs/unit5_test_predictions.csv`, and `outputs/research_extension/ibm_activity_feature_table.csv` — are excluded via `.gitignore` and recreated on run.)*
 
 ---
 
