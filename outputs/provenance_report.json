@@ -1,0 +1,34 @@
+{
+  "timestamp_utc": "2026-11-24T16:10:35Z",
+  "python_version": "3.14.6",
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "library_versions": {
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "scipy": "1.18.0",
+    "scikit-learn": "1.9.1",
+    "networkx": "3.6.1",
+    "matplotlib": "3.11.0",
+    "pyyaml": "6.0.3"
+  },
+  "config_hashes": {
+    "benchmark.yaml": "a3923fb23732b30ae7d42ffd188e54b2a55c92a8e8ac3f581f7fc069d9d8f231",
+    "data.yaml": "9c56ae5e8d8271c28d128f04a193c451e0dc2d772376f81e517d06d3c4056857",
+    "extensions.yaml": "b9924363d0b3eff4de5c2983afa16d7c47d376c0192eabaf67e558aae999c8c5",
+    "phase2.yaml": "1600e7984c840dbb5dd9310ddfc47f6c0d8d2128a4d68d3485c89c6ace2fe7d7",
+    "sampling.yaml": "ed02516a3d50d2bdf756a678df85ee3e4addfb3392bf23bd4acd0c29070251a4",
+    "tuning.yaml": "538b4801b33c475e6f7d14598eabf18c036afbd3b70d39dfbab280853d77548c",
+    "combined_sha256": "435310ca0bdf9a9658921e00c7af7eb7b1b62a4c062abd019bc36c2ab5fb38b2"
+  },
+  "stage": "report",
+  "figures": [
+    "results_lift.png",
+    "unit5_archival_model_comparison.png",
+    "unit6_hypothetical_base_rate_sensitivity.png",
+    "research_extension/domain_shift_KS.png",
+    "research_extension/typology_recall_breakdown.png",
+    "phase2/before_vs_after_benchmark.png",
+    "phase2/window_leak_audit.png",
+    "phase2/rolling_vs_account_folds.png"
+  ]
+}
