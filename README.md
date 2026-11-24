@@ -1,4 +1,4 @@
-# AML Subgraph Construction Bias & Structural Graph Transfer — IBM AML HI-Small vs Elliptic2
+# AML Subgraph Construction Bias & Structural Graph Transfer - IBM AML HI-Small vs Elliptic2
 
 [![CI](https://github.com/IliaJakha/bank-account-fraud-risk-scoring/actions/workflows/ci.yml/badge.svg)](https://github.com/IliaJakha/bank-account-fraud-risk-scoring/actions/workflows/ci.yml)
 
@@ -10,7 +10,7 @@ A rigorous empirical investigation of **candidate-construction bias**, **observa
 
 ## Headline Findings (Phase 2 Label-Blind Methodology)
 
-1. **Most of the legacy IBM topological separation was a candidate-construction artifact — pure 14-feature topology is modest once both classes share one label-blind sampler.**
+1. **Most of the legacy IBM topological separation was a candidate-construction artifact - pure 14-feature topology is modest once both classes share one label-blind sampler.**
    - **Validation-selected 14-feature model (`LogReg`):** Selected strictly by mean inner-validation AP in both **4-fold rolling-origin temporal evaluation** (`val AP = 0.3571`) and **4-fold connected-component account-group evaluation** (`val AP = 0.4258`).
    - Replacing the legacy benchmark (documented laundering attempts vs licit BFS neighborhoods: `LogReg` test AP `0.5677` `[0.4643, 0.6677]`, `11.39×` lift, ROC-AUC `0.8769`) with a **single unified label-blind BFS sampler** (`10,000` candidates, `1,387` rolling-origin test positives and `2,730` account-group test positives across `4/4` estimable folds) reduces **`LogReg` ROC-AUC to `0.5995` `[0.5706, 0.6285]`** on rolling-origin folds (pooled AP `0.3959` `[0.3701, 0.4209]`, fold-mean AP `0.4301` `[0.1589, 0.7014]`, unweighted lift `1.37×` `[1.12×, 1.63×]`; IPW population-weighted AP `0.0404` at `0.0060` prevalence, IPW lift `3.99×`, IPW ROC-AUC `0.6132`) and **`0.6400` `[0.5976, 0.6824]`** on account-disjoint component folds (pooled AP `0.3538` `[0.3364, 0.3712]`, unweighted lift `1.57×` `[1.28×, 1.86×]`; IPW lift `5.63×`, IPW ROC-AUC `0.6928`).
    - All four 14-feature classifiers beat the 2-feature `SizeOnly` baseline significantly on paired out-of-fold tests (`LogReg` vs `SizeOnly` paired $\Delta\text{AP} = +0.1180$ `[+0.0999, +0.1385]`, $p = 0.001$; DeLong $\Delta\text{AUC} = +0.1199, p < 10^{-4}$), but differ negligibly from one another (`ROC-AUC 0.599–0.600` on rolling-origin).
