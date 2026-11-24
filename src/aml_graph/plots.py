@@ -295,8 +295,16 @@ def generate_all_reports(out_dir: Path, ext_cfg: dict[str, Any]) -> list[str]:
     return generated
 
 
+def _asym_yerr(mean: pd.Series, lo: pd.Series, hi: pd.Series) -> np.ndarray:
+    lower = np.maximum(0.0, mean.to_numpy(dtype=float) - lo.to_numpy(dtype=float))
+    upper = np.maximum(0.0, hi.to_numpy(dtype=float) - mean.to_numpy(dtype=float))
+    lower = np.nan_to_num(lower, nan=0.0)
+    upper = np.nan_to_num(upper, nan=0.0)
+    return np.vstack([lower, upper])
+
+
 def plot_phase2_figures(out_dir: Path) -> list[str]:
-    """Generate Phase 2 before/after construction-bias, window-leak, and multi-fold figures."""
+    """Generate Phase 2 before/after construction-bias, seed-mode/window-leak, and fold figures."""
     p2_dir = out_dir / "phase2"
     made: list[str] = []
     if not p2_dir.exists():
@@ -304,14 +312,15 @@ def plot_phase2_figures(out_dir: Path) -> list[str]:
 
     ba_csv = p2_dir / "before_after_comparison.csv"
     if ba_csv.exists():
-        ba = pd.read_csv(ba_csv)
+        ba_full = pd.read_csv(ba_csv)
+        ba = ba_full[ba_full["legacy_lift"].notna()].reset_index(drop=True)
         if not ba.empty and "ro_lift_mean" in ba.columns:
             fig, axes = plt.subplots(1, 2, figsize=(14.5, 5.2))
             x = np.arange(len(ba))
             w = 0.26
             m_labels = [m.replace("StructPlusActivity_20", "Struct+Act (20)") for m in ba["model"]]
 
-            # Panel (a): Lift over prevalence (log scale across 1x..18x range)
+            # Panel (a): Lift over prevalence (log scale across 1x..18x range) with clipped 95% CIs
             ax = axes[0]
             ax.bar(
                 x - w,
@@ -321,22 +330,35 @@ def plot_phase2_figures(out_dir: Path) -> list[str]:
                 color="#D95F02",
                 alpha=0.85,
             )
+            ro_lift_err = _asym_yerr(
+                ba["ro_lift_mean"], ba["ro_lift_ci95_lo"], ba["ro_lift_ci95_hi"]
+            )
             ax.bar(
                 x,
                 ba["ro_lift_mean"],
                 w,
-                label="Phase 2 Label-Blind (Unweighted)",
+                yerr=ro_lift_err,
+                capsize=2.5,
+                error_kw={"lw": 1.0, "ecolor": "#222222"},
+                label="Phase 2 Rolling-Origin (4 folds)",
                 color="#1B9E77",
                 alpha=0.85,
             )
-            ax.bar(
-                x + w,
-                ba["ro_ipw_lift_mean"],
-                w,
-                label="Phase 2 Label-Blind (IPW Pop.)",
-                color="#7570B3",
-                alpha=0.85,
-            )
+            if "ag_lift_mean" in ba.columns:
+                ag_lift_err = _asym_yerr(
+                    ba["ag_lift_mean"], ba["ag_lift_ci95_lo"], ba["ag_lift_ci95_hi"]
+                )
+                ax.bar(
+                    x + w,
+                    ba["ag_lift_mean"],
+                    w,
+                    yerr=ag_lift_err,
+                    capsize=2.5,
+                    error_kw={"lw": 1.0, "ecolor": "#222222"},
+                    label="Phase 2 Account-Group (4 folds)",
+                    color="#4C78A8",
+                    alpha=0.85,
+                )
             ax.axhline(1.0, color="grey", ls="--", lw=1, label="Random (1.0×)")
             ax.set_yscale("log")
             ax.set_xticks(x, m_labels, rotation=22, ha="right", fontsize=8.5)
@@ -345,7 +367,7 @@ def plot_phase2_figures(out_dir: Path) -> list[str]:
             ax.legend(frameon=False, fontsize=8)
             ax.grid(axis="y", alpha=0.2)
 
-            # Panel (b): ROC-AUC before vs after (Rolling-Origin & Account-Group)
+            # Panel (b): ROC-AUC before vs after with clipped 95% CIs
             ax2 = axes[1]
             ax2.bar(
                 x - w,
@@ -355,19 +377,31 @@ def plot_phase2_figures(out_dir: Path) -> list[str]:
                 color="#D95F02",
                 alpha=0.85,
             )
+            ro_auc_err = _asym_yerr(
+                ba["ro_roc_auc_mean"], ba["ro_roc_auc_ci95_lo"], ba["ro_roc_auc_ci95_hi"]
+            )
             ax2.bar(
                 x,
                 ba["ro_roc_auc_mean"],
                 w,
+                yerr=ro_auc_err,
+                capsize=2.5,
+                error_kw={"lw": 1.0, "ecolor": "#222222"},
                 label="Phase 2 Rolling-Origin (4 folds)",
                 color="#1B9E77",
                 alpha=0.85,
             )
             if "ag_roc_auc_mean" in ba.columns:
+                ag_auc_err = _asym_yerr(
+                    ba["ag_roc_auc_mean"], ba["ag_roc_auc_ci95_lo"], ba["ag_roc_auc_ci95_hi"]
+                )
                 ax2.bar(
                     x + w,
                     ba["ag_roc_auc_mean"],
                     w,
+                    yerr=ag_auc_err,
+                    capsize=2.5,
+                    error_kw={"lw": 1.0, "ecolor": "#222222"},
                     label="Phase 2 Account-Group (4 folds)",
                     color="#4C78A8",
                     alpha=0.85,
@@ -390,11 +424,13 @@ def plot_phase2_figures(out_dir: Path) -> list[str]:
             made.append(str(p_ba))
 
     wa_csv = p2_dir / "window_leak_audit_summary.csv"
+    uni_csv = p2_dir / "uniform_seed_check.csv"
     if wa_csv.exists() and ba_csv.exists():
         wa = pd.read_csv(wa_csv)
-        ba = pd.read_csv(ba_csv).set_index("model")
+        ba_idx = pd.read_csv(ba_csv).set_index("model")
+        uni_df = pd.read_csv(uni_csv) if uni_csv.exists() else pd.DataFrame()
         if len(wa) >= 2:
-            fig, axes = plt.subplots(1, 2, figsize=(13, 4.8))
+            fig, axes = plt.subplots(1, 2, figsize=(13.5, 4.9))
             ax = axes[0]
             piv = wa.pivot(index="benchmark", columns="class_label", values="mean_span_ratio")
             order_b = [
@@ -417,33 +453,79 @@ def plot_phase2_figures(out_dir: Path) -> list[str]:
             ax.grid(axis="y", alpha=0.2)
 
             ax2 = axes[1]
-            if "StructPlusActivity_20" in ba.index and "ro_roc_auc_mean" in ba.columns:
-                models_cmp = ["LogReg", "GradBoosting", "StructPlusActivity_20"]
-                present_m = [m for m in models_cmp if m in ba.index]
+            models_cmp = ["SizeOnly", "LogReg", "ActivityOnly_6", "StructPlusActivity_20"]
+            present_m = [m for m in models_cmp if m in ba_idx.index]
+            if present_m and "ro_roc_auc_mean" in ba_idx.columns:
                 xm = np.arange(len(present_m))
-                ax2.bar(
-                    xm - 0.16,
-                    [ba.loc[m, "legacy_roc_auc"] for m in present_m],
-                    0.30,
-                    label="Legacy window rule",
-                    color="#D95F02",
+                wb = 0.25
+                ba_sub = ba_idx.loc[present_m]
+                ro_mix_err = _asym_yerr(
+                    ba_sub["ro_roc_auc_mean"],
+                    ba_sub["ro_roc_auc_ci95_lo"],
+                    ba_sub["ro_roc_auc_ci95_hi"],
                 )
                 ax2.bar(
-                    xm + 0.16,
-                    [ba.loc[m, "ro_roc_auc_mean"] for m in present_m],
-                    0.30,
-                    label="Symmetric window rule (Phase 2)",
+                    xm - wb,
+                    ba_sub["ro_roc_auc_mean"],
+                    wb,
+                    yerr=ro_mix_err,
+                    capsize=2.5,
+                    error_kw={"lw": 1.0, "ecolor": "#222222"},
+                    label="Rolling-Origin (enriched mix)",
                     color="#1B9E77",
+                    alpha=0.88,
                 )
+                if not uni_df.empty:
+                    u_ro = uni_df[uni_df["regime"] == "rolling_origin"].set_index("model")
+                    u_ag = uni_df[uni_df["regime"] == "account_group"].set_index("model")
+                    if all(m in u_ro.index for m in present_m):
+                        u_ro_sub = u_ro.loc[present_m]
+                        u_ro_err = _asym_yerr(
+                            u_ro_sub["roc_auc_mean"],
+                            u_ro_sub["roc_auc_ci95_lo"],
+                            u_ro_sub["roc_auc_ci95_hi"],
+                        )
+                        ax2.bar(
+                            xm,
+                            u_ro_sub["roc_auc_mean"],
+                            wb,
+                            yerr=u_ro_err,
+                            capsize=2.5,
+                            error_kw={"lw": 1.0, "ecolor": "#222222"},
+                            label="Rolling-Origin (uniform seeds, n=15 pos)",
+                            color="#7570B3",
+                            alpha=0.88,
+                        )
+                    if all(m in u_ag.index for m in present_m):
+                        u_ag_sub = u_ag.loc[present_m]
+                        u_ag_err = _asym_yerr(
+                            u_ag_sub["roc_auc_mean"],
+                            u_ag_sub["roc_auc_ci95_lo"],
+                            u_ag_sub["roc_auc_ci95_hi"],
+                        )
+                        ax2.bar(
+                            xm + wb,
+                            u_ag_sub["roc_auc_mean"],
+                            wb,
+                            yerr=u_ag_err,
+                            capsize=2.5,
+                            error_kw={"lw": 1.0, "ecolor": "#222222"},
+                            label="Account-Group (uniform seeds, n=46 pos)",
+                            color="#4C78A8",
+                            alpha=0.88,
+                        )
                 ax2.axhline(0.5, color="grey", ls="--", lw=1)
-                ax2.set_ylim(0.4, 1.03)
-                ax2.set_xticks(
-                    xm,
-                    [m.replace("StructPlusActivity_20", "20-Feat (Struct+Act)") for m in present_m],
-                )
+                ax2.set_ylim(0.35, 1.03)
+                label_map = {
+                    "SizeOnly": "SizeOnly (2)",
+                    "LogReg": "LogReg (14)",
+                    "ActivityOnly_6": "Activity (6)",
+                    "StructPlusActivity_20": "Struct+Act (20)",
+                }
+                ax2.set_xticks(xm, [label_map.get(m, m) for m in present_m], fontsize=8.5)
                 ax2.set_ylabel("Outer-test ROC-AUC")
-                ax2.set_title("(b) Activity-feature signal before vs after window fix")
-                ax2.legend(frameon=False, fontsize=8.5)
+                ax2.set_title("(b) Seed-mode check: enriched mix vs uniform-seeded only")
+                ax2.legend(frameon=False, fontsize=8)
                 ax2.grid(axis="y", alpha=0.2)
 
             for a in axes:

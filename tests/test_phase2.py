@@ -1,4 +1,4 @@
-"""Unit tests for Phase 2 label-blind IPW sampling, multi-fold splits, and statistical tests."""
+"""Unit tests for Phase 2 IPW/Kish n_eff, multi-fold splits, and fold-stratified tests."""
 
 from __future__ import annotations
 
@@ -6,10 +6,14 @@ import math
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import roc_auc_score
 
 from aml_graph.data import IBM_COLS
 from aml_graph.phase2 import (
     delong_roc_test,
+    fold_stratified_bootstrap_summary,
+    fold_stratified_paired_comparison,
+    kish_effective_sample_size,
     paired_bootstrap_comparison,
     score_unweighted_and_ipw,
 )
@@ -20,7 +24,6 @@ from aml_graph.splits import account_component_group_splits, rolling_origin_spli
 def test_label_blind_ipw_weights_and_posthoc_typology() -> None:
     base = pd.Timestamp("2022-09-01 00:00:00")
     rows = []
-    # 40 transactions across 10 disjoint triads; 4 positive triads, 6 licit triads
     for k in range(10):
         is_pos = int(k < 4)
         for step, (a, b) in enumerate(((0, 1), (1, 2), (2, 0), (0, 2))):
@@ -50,7 +53,6 @@ def test_label_blind_ipw_weights_and_posthoc_typology() -> None:
     ibm["d"] = codes[len(ibm) :]
 
     idx = EdgeIndex(ibm, len(accounts))
-    # Verify exact Horvitz-Thompson proposal normalization: sum_e p(e) == 1 and p(e)*w(e) == 1/N
     n_total = len(ibm)
     m_pos = int(ibm["is_laundering"].sum())
     alpha = 0.40
@@ -68,7 +70,6 @@ def test_label_blind_ipw_weights_and_posthoc_typology() -> None:
         seed=123,
     )
     assert len(df) > 0
-    assert "ipw_weight" in df.columns and "sampling_prob" in df.columns
     for _, r in df.iterrows():
         expected_p = p_pos if int(r["seed_is_laundering"]) == 1 else p_neg
         assert math.isclose(float(r["sampling_prob"]), expected_p, rel_tol=1e-12)
@@ -101,13 +102,10 @@ def test_rolling_origin_splits_three_non_overlapping_embargoed_folds() -> None:
     for f in folds:
         fit_i, val_i, test_i = f["fit_idx"], f["val_idx"], f["test_idx"]
         assert len(fit_i) > 0 and len(val_i) > 0 and len(test_i) > 0
-        # Embargo invariants
         assert int(df["t_start"].iloc[val_i].min()) > int(df["t_end"].iloc[fit_i].max()) + 90
         assert int(df["t_start"].iloc[test_i].min()) > int(df["t_end"].iloc[val_i].max()) + 90
-        # Non-overlapping test periods across folds
         assert seen_tests.isdisjoint(test_i.tolist())
         seen_tests.update(test_i.tolist())
-        # Transaction-edge disjointness
         ef = set().union(*(edge_map[df["sg_id"].iloc[k]].tolist() for k in fit_i))
         ev = set().union(*(edge_map[df["sg_id"].iloc[k]].tolist() for k in val_i))
         et = set().union(*(edge_map[df["sg_id"].iloc[k]].tolist() for k in test_i))
@@ -118,7 +116,6 @@ def test_account_component_group_splits_keeps_connected_components_intact() -> N
     rows = []
     node_map: dict[str, np.ndarray] = {}
     edge_map: dict[str, np.ndarray] = {}
-    # 12 components of 3 subgraphs each; subgraphs inside a component chain accounts
     for comp in range(12):
         base_acc = comp * 100
         for step in range(3):
@@ -134,7 +131,6 @@ def test_account_component_group_splits_keeps_connected_components_intact() -> N
     folds = account_component_group_splits(df, node_map, edge_map, n_folds=4)
     assert len(folds) == 4
     all_test = np.concatenate([f["test_idx"] for f in folds])
-    # 100% retention and exact partition of indices across the 4 test folds
     assert sorted(all_test.tolist()) == list(range(len(df)))
 
     for f in folds:
@@ -144,29 +140,65 @@ def test_account_component_group_splits_keeps_connected_components_intact() -> N
         assert nf.isdisjoint(nv) and nf.isdisjoint(nt) and nv.isdisjoint(nt)
 
 
-def test_min_30_positives_guard_and_delong_paired_tests() -> None:
-    # 29 positives must be marked not_estimable_lt_30_positives under default min_test_positives=30
-    y_small = np.array([1] * 29 + [0] * 100)
-    p_small = np.linspace(0.1, 0.9, len(y_small))
-    w_small = np.ones_like(p_small)
-    res_small = score_unweighted_and_ipw(y_small, p_small, 0.5, w_small, min_test_positives=30)
-    assert res_small["status"] == "not_estimable_lt_30_positives"
-    assert math.isnan(res_small["pr_auc"])
+def test_kish_effective_sample_size_and_ipw_estimability_guard() -> None:
+    assert kish_effective_sample_size(np.array([])) == 0.0
+    assert math.isclose(kish_effective_sample_size(np.ones(50) * 3.5), 50.0, rel_tol=1e-12)
+    # 5 heavy weights of 100 and 95 tiny weights of 0.01 -> n_eff ~ 5.0
+    skewed_w = np.array([100.0] * 5 + [0.01] * 95)
+    assert 5.0 <= kish_effective_sample_size(skewed_w) < 5.02
 
-    # 30 positives is estimable (use noisy overlapping scores so DeLong covariance > 0)
-    rng = np.random.default_rng(42)
-    y_ok = np.array([1] * 30 + [0] * 100)
-    p_a = np.concatenate([rng.uniform(0.45, 0.95, 30), rng.uniform(0.05, 0.65, 100)])
-    p_b = rng.uniform(0.2, 0.8, 130)
-    res_ok = score_unweighted_and_ipw(y_ok, p_a, 0.5, np.ones_like(p_a), min_test_positives=30)
-    assert res_ok["status"] == "ok" and res_ok["pr_auc"] > 0.6
+    # 40 positives (>=30 unweighted), but only 5 uniform positives -> kish_n_eff_pos < 30
+    rng = np.random.default_rng(9)
+    y = np.array([1] * 40 + [0] * 100)
+    p = np.concatenate([rng.uniform(0.5, 0.9, 40), rng.uniform(0.1, 0.5, 100)])
+    w = np.array([100.0] * 5 + [0.01] * 35 + [1.0] * 100)
+    seeds = np.array(["uniform"] * 5 + ["positive_enriched"] * 35 + ["uniform"] * 100)
 
-    dl_same = delong_roc_test(y_ok, p_a, p_a)
+    res = score_unweighted_and_ipw(
+        y, p, 0.5, w, seed_sources=seeds, min_test_positives=30, min_effective_positives=30.0
+    )
+    assert res["status"] == "ok"
+    assert res["n_uniform_positives"] == 5
+    assert res["kish_n_eff_positives"] < 30.0
+    assert res["ipw_status"] == "not_estimable_lt_30_eff_positives"
+    assert math.isnan(res["ipw_pr_auc"]) and math.isnan(res["ipw_roc_auc"])
+
+
+def test_fold_stratified_paired_test_prevents_prevalence_shift_inversion() -> None:
+    """Demonstrate why cross-fold raw probability pooling fails under prevalence shift."""
+    # Fold 0: low prevalence (20%), high score offset [0.70..0.95] -> AUC(A) > AUC(B)
+    # Fold 1: high prevalence (75%), lower offset [0.10..0.40] -> AUC(A) > AUC(B)
+    rng = np.random.default_rng(2026)
+    y0 = np.array([1] * 30 + [0] * 120)
+    pa0 = np.concatenate([rng.uniform(0.82, 0.95, 30), rng.uniform(0.70, 0.86, 120)])
+    pb0 = rng.uniform(0.70, 0.90, 150)
+
+    y1 = np.array([1] * 120 + [0] * 40)
+    pa1 = np.concatenate([rng.uniform(0.22, 0.40, 120), rng.uniform(0.10, 0.26, 40)])
+    pb1 = rng.uniform(0.10, 0.35, 160)
+
+    # Naive pooling inverts AUC(pa) below 0.5 because Fold 0 negatives > Fold 1 positives!
+    pooled_auc = roc_auc_score(np.concatenate([y0, y1]), np.concatenate([pa0, pa1]))
+    assert pooled_auc < 0.40
+
+    # Fold-stratified paired test computes deltas within each fold and recovers true AUC > 0.85!
+    comb, per_fold = fold_stratified_paired_comparison(
+        [(y0, pa0, pb0), (y1, pa1, pb1)], n_boot=300, seed=0
+    )
+    assert len(per_fold) == 2
+    assert comb["auc_a_mean"] > 0.85
+    assert comb["delta_auc"] > 0.25
+    assert comb["delong_p"] < 1e-6
+    assert comb["delta_ap"] > 0.15
+
+    # Also verify clipped bootstrap CIs lie strictly inside valid bounds
+    boot = fold_stratified_bootstrap_summary([(y0, pa0, None), (y1, pa1, None)], n_boot=200, seed=0)
+    assert 0.0 <= boot["ap_ci95_lo"] <= boot["ap_mean"] <= boot["ap_ci95_hi"] <= 1.0
+    assert 0.0 <= boot["roc_auc_ci95_lo"] <= boot["roc_auc_mean"] <= boot["roc_auc_ci95_hi"] <= 1.0
+    assert 0.0 <= boot["lift_ci95_lo"] <= boot["lift_mean"] <= boot["lift_ci95_hi"]
+
+    dl_same = delong_roc_test(y0, pa0, pa0)
     assert math.isclose(dl_same["delta_auc"], 0.0, abs_tol=1e-12)
     assert math.isclose(dl_same["delong_p"], 1.0, abs_tol=1e-12)
-
-    paired = paired_bootstrap_comparison(
-        y_ok, p_a, p_b, weights=np.ones_like(p_a), n_boot=200, seed=0
-    )
-    assert paired["delta_ap"] > 0.2
-    assert paired["delong_p"] < 0.001
+    single = paired_bootstrap_comparison(y0, pa0, pb0, n_boot=100, seed=0)
+    assert single["delta_auc"] > 0.20

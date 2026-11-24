@@ -244,13 +244,14 @@ def cmd_phase2(args: argparse.Namespace) -> int:
     from aml_graph.plots import plot_phase2_figures
 
     figs = plot_phase2_figures(output_dir)
+    rel_figs = [str(Path(f).relative_to(output_dir)) for f in figs]
     save_run_metadata(
         output_dir,
         "phase2",
         config_dir,
         extra={
             "n_candidates": len(p2_bundle["candidates"]),
-            "figures": figs,
+            "figures": rel_figs,
         },
     )
     print(f"Completed Phase 2 and generated {len(figs)} figures in {output_dir / 'phase2'}")
@@ -261,7 +262,8 @@ def cmd_report(args: argparse.Namespace) -> int:
     config_dir, output_dir, _ = _resolve_paths(args)
     cfgs = load_all_configs(config_dir)
     generated = generate_all_reports(output_dir, cfgs.get("extensions", {}))
-    save_run_metadata(output_dir, "report", config_dir, extra={"figures": generated})
+    rel_gen = [str(Path(f).relative_to(output_dir)) for f in generated]
+    save_run_metadata(output_dir, "report", config_dir, extra={"figures": rel_gen})
     print(f"Generated {len(generated)} report figures in {output_dir}")
     return 0
 

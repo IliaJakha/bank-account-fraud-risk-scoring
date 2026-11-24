@@ -93,6 +93,19 @@ def test_end_to_end_cli_pipeline_on_fixture(tmp_path: Path) -> None:
         "research_extension/domain_shift_train_only.csv",
         "research_extension/IBM_activity_feature_experiment.csv",
         "research_extension/research_extension_summary.json",
+        "phase2/label_blind_candidates.csv",
+        "phase2/fold_metrics.csv",
+        "phase2/ipw_appendix_audit.csv",
+        "phase2/summary_by_regime.csv",
+        "phase2/paired_comparisons.csv",
+        "phase2/paired_comparisons_by_fold.csv",
+        "phase2/uniform_seed_check.csv",
+        "phase2/uniform_seed_check_by_fold.csv",
+        "phase2/before_after_comparison.csv",
+        "phase2/window_leak_audit_summary.csv",
+        "phase2/before_vs_after_benchmark.png",
+        "phase2/window_leak_audit.png",
+        "phase2/rolling_vs_account_folds.png",
     ]
     for rel in expected_files:
         assert (out_dir / rel).exists(), f"Missing expected output: {rel}"

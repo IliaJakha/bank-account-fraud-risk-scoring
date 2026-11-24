@@ -9,6 +9,7 @@ sampler:
 
 splits:
   min_test_positives: 2
+  min_effective_positives: 30.0
   rolling_origin:
     n_folds: 3
     embargo_minutes: 60
