@@ -1,0 +1,28 @@
+seed: 0
+domains: ["ibm", "elliptic2"]
+models: ["LogReg", "RandomForest", "GradBoosting", "ExtraTrees"]
+bootstrap_resamples: 400
+platt_c: 1.0
+
+grids:
+  LogReg:
+    c_values: [0.01, 0.1, 1.0, 10.0]
+    max_iter: 2000
+  RandomForest:
+    candidates:
+      - { n_estimators: 300, max_depth: null, min_samples_leaf: 2, max_features: "sqrt" }
+      - { n_estimators: 300, max_depth: 12, min_samples_leaf: 5, max_features: "sqrt" }
+      - { n_estimators: 400, max_depth: 10, min_samples_leaf: 5, max_features: 0.5 }
+      - { n_estimators: 400, max_depth: 16, min_samples_leaf: 2, max_features: 0.5 }
+  GradBoosting:
+    candidates:
+      - { learning_rate: 0.03, max_iter: 300, max_leaf_nodes: 15, min_samples_leaf: 20, l2_regularization: 0.0 }
+      - { learning_rate: 0.03, max_iter: 300, max_leaf_nodes: 15, min_samples_leaf: 50, l2_regularization: 1.0 }
+      - { learning_rate: 0.05, max_iter: 300, max_leaf_nodes: 31, min_samples_leaf: 20, l2_regularization: 1.0 }
+      - { learning_rate: 0.05, max_iter: 200, max_leaf_nodes: 15, min_samples_leaf: 30, l2_regularization: 5.0 }
+      - { learning_rate: 0.08, max_iter: 250, max_leaf_nodes: 31, min_samples_leaf: 20, l2_regularization: 1.0 }
+  ExtraTrees:
+    candidates:
+      - { n_estimators: 300, max_depth: null, min_samples_leaf: 2, max_features: "sqrt" }
+      - { n_estimators: 300, max_depth: 14, min_samples_leaf: 3, max_features: 0.5 }
+      - { n_estimators: 400, max_depth: 10, min_samples_leaf: 5, max_features: "sqrt" }

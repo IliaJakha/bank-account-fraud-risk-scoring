@@ -1,0 +1,37 @@
+url_template: "https://huggingface.co/datasets/{repo}/resolve/{revision}/{name}"
+paths:
+  ibm_dir: "data/ibm"
+  elliptic2_dir: "data/elliptic2"
+  outputs_dir: "outputs"
+
+sources:
+  HI-Small_Trans.csv:
+    repo: "OsamaMIT/IBM-AML-HI"
+    revision: "7edaa9d8f03f4713324186c8bc5d61bb847723ec"
+    subdir: "ibm"
+    size_bytes: 475664283
+    sha256: "b19d39f515523373f991b689c07e11e7b0b95c17a2c27a87d91584ae16c5b040"
+  HI-Small_Patterns.txt:
+    repo: "OsamaMIT/IBM-AML-HI"
+    revision: "7edaa9d8f03f4713324186c8bc5d61bb847723ec"
+    subdir: "ibm"
+    size_bytes: 323844
+    sha256: "2c546b5ce6009e73851f0139af053cf845f08bf92f3bc82fe1eb937dec2ef39b"
+  connected_components.csv:
+    repo: "mendozzzz/elliptic2-data-set"
+    revision: "79e432e77c9ed216be08616048bfeba12a8a6247"
+    subdir: "elliptic2"
+    size_bytes: 1610070
+    sha256: "79511c49f76110d0feae7feda7e85279bc442efe31f5e7a9f53b2caf0019062b"
+  nodes.csv:
+    repo: "mendozzzz/elliptic2-data-set"
+    revision: "79e432e77c9ed216be08616048bfeba12a8a6247"
+    subdir: "elliptic2"
+    size_bytes: 7470115
+    sha256: "c39fe3ac90da31b0684ec2c55d52225aa41a8fa1edccff8aff5ae1fd8817de18"
+  edges.csv:
+    repo: "mendozzzz/elliptic2-data-set"
+    revision: "79e432e77c9ed216be08616048bfeba12a8a6247"
+    subdir: "elliptic2"
+    size_bytes: 11356690
+    sha256: "cd5706110242ddb5505074f65287c45f1ff7dbfb52a0ef1c2e6a45da569e3ad0"

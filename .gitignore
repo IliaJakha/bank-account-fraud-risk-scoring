@@ -2,8 +2,15 @@ data/
 .ipynb_checkpoints/
 .DS_Store
 __pycache__/
+*.py[cod]
 .venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
 outputs/subgraph_sets.pkl
 outputs/unit5_test_predictions.csv
 outputs/elliptic2_features.csv
 outputs/research_extension/ibm_activity_feature_table.csv
+outputs/phase1_verify/

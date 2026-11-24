@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aml-graph"
+version = "0.1.0"
+description = "Structural graph feature analysis and cross-domain transfer for AML subgraph classification"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Ilia Jakhaia", email = "iliajakha@gmail.com" },
+]
+dependencies = [
+    "numpy==2.4.6",
+    "pandas==3.0.3",
+    "scipy==1.18.0",
+    "scikit-learn==1.9.1",
+    "networkx==3.6.1",
+    "matplotlib==3.11.0",
+    "pyyaml==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.9.0",
+]
+
+[project.scripts]
+aml-graph = "aml_graph.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra -q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

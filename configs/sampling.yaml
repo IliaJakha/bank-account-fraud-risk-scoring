@@ -1,0 +1,14 @@
+ibm_sampling:
+  seed: 42
+  min_window_minutes: 60
+  neg_per_pos: 20
+  bfs_tries: 10
+  max_attempt_multiplier: 20
+
+common_bfs:
+  seed: 2026
+  n_candidates: 2500
+  positive_seed_probability: 0.40
+  node_sizes: [3, 4, 5, 6, 8, 10]
+  windows_minutes: [60, 180, 360]
+  max_tries_multiplier: 20
