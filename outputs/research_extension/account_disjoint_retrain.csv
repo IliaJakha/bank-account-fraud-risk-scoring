@@ -1,0 +1,2 @@
+split,fit_n,val_n,status,n,positives,prevalence,AP,AP_lift,ROC_AUC,precision,recall,F1,TN,FP,FN,TP
+account_disjoint_retrain,6877,437,ok,365,6,0.01643835616438356,0.6735348503717121,40.97337006427916,0.7611420612813371,1.0,0.6666666666666666,0.8,359,0,2,4

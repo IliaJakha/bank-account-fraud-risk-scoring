@@ -1,0 +1,86 @@
+{
+  "collection": {
+    "date": "2026-11-23",
+    "HI-Small_Trans.csv": {
+      "url": "https://huggingface.co/datasets/OsamaMIT/IBM-AML-HI/resolve/main/HI-Small_Trans.csv",
+      "size_mb": 475.7
+    },
+    "HI-Small_Patterns.txt": {
+      "url": "https://huggingface.co/datasets/OsamaMIT/IBM-AML-HI/resolve/main/HI-Small_Patterns.txt",
+      "size_mb": 0.3
+    },
+    "connected_components.csv": {
+      "url": "https://huggingface.co/datasets/mendozzzz/elliptic2-data-set/resolve/main/connected_components.csv",
+      "size_mb": 1.6
+    },
+    "nodes.csv": {
+      "url": "https://huggingface.co/datasets/mendozzzz/elliptic2-data-set/resolve/main/nodes.csv",
+      "size_mb": 7.5
+    },
+    "edges.csv": {
+      "url": "https://huggingface.co/datasets/mendozzzz/elliptic2-data-set/resolve/main/edges.csv",
+      "size_mb": 11.4
+    }
+  },
+  "ibm": {
+    "raw_rows": 5078345,
+    "null_values_per_column": {},
+    "laundering_rows": 5177,
+    "laundering_rate_1_in": 980.9,
+    "exact_duplicate_rows": 9,
+    "cross_currency_rows": 72170,
+    "rows_dropped_missing_or_bad_date": 0,
+    "unique_accounts": 515088,
+    "self_loop_rows": 591212,
+    "time_range": [
+      "2022-09-01 00:00:00",
+      "2022-09-18 16:18:00"
+    ],
+    "distinct_directed_account_pairs": 1015736,
+    "share_of_pairs_with_repeat_transactions": 0.5529,
+    "laundering_attempts": 370,
+    "attempts_by_pattern": {
+      "CYCLE": 54,
+      "GATHER-SCATTER": 51,
+      "BIPARTITE": 49,
+      "FAN-OUT": 48,
+      "SCATTER-GATHER": 44,
+      "STACK": 43,
+      "RANDOM": 41,
+      "FAN-IN": 40
+    },
+    "pattern_coverage_of_laundering_rows": 0.6199,
+    "pattern_accounts_missing_from_transactions": 0
+  },
+  "elliptic2": {
+    "labeled_subgraphs": 121810,
+    "licit": 119047,
+    "suspicious": 2763,
+    "unknown_labels_dropped": 0,
+    "node_rows": 444521,
+    "edge_rows": 367137,
+    "duplicate_node_rows": 0,
+    "clusters_in_more_than_one_subgraph": 0,
+    "max_subgraphs_sharing_one_cluster": 1,
+    "edges_assigned_to_a_subgraph": 367137,
+    "edges_in_more_than_one_subgraph": 0,
+    "original_edges_not_assigned": 0,
+    "self_loop_edges": 0,
+    "parallel_edges_collapsed": 23945
+  },
+  "subgraphs": {
+    "ibm_positive_subgraphs": 370,
+    "ibm_negative_subgraphs": 7400,
+    "ibm_negative_sampling_attempts": 11212,
+    "ibm_negatives_rejected_contained_laundering": 652,
+    "ibm_negatives_rejected_too_small": 3160,
+    "ibm_final_subgraphs": 7770,
+    "ibm_prevalence": 0.0476,
+    "elliptic2_final_subgraphs": 121810,
+    "elliptic2_prevalence": 0.0227,
+    "elliptic2_subgraphs_without_edges": 0,
+    "features_nearly_constant_in_elliptic2": [],
+    "correlation_structure_similarity_ibm_vs_elliptic2": 0.816,
+    "features_same_direction_in_both": 8
+  }
+}

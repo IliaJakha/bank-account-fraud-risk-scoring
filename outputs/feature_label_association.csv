@@ -1,0 +1,15 @@
+feature,rho_label_IBM,auc_IBM,rho_label_Elliptic2,auc_Elliptic2,same_direction
+frac_sinks,-0.209,0.22,-0.012,0.479,True
+longest_chain_norm,-0.169,0.273,-0.003,0.496,True
+has_cycle,0.424,0.647,-0.006,0.495,False
+frac_passthrough,0.112,0.646,0.015,0.527,True
+deg_gini,-0.098,0.368,0.011,0.519,False
+edges_per_node,0.087,0.618,0.013,0.524,True
+reciprocity,0.317,0.598,-0.006,0.496,False
+frac_sources,-0.071,0.404,-0.016,0.471,True
+max_in_deg_norm,0.054,0.573,-0.02,0.465,False
+density,0.043,0.558,-0.018,0.468,False
+max_out_deg_norm,-0.04,0.448,-0.018,0.468,True
+hub_share,-0.032,0.46,-0.02,0.468,True
+n_edges,0.012,0.516,0.015,0.528,True
+n_nodes,-0.011,0.485,0.016,0.53,False

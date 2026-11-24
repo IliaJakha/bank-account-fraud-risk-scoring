@@ -1,0 +1,9 @@
+data/
+.ipynb_checkpoints/
+.DS_Store
+__pycache__/
+.venv/
+outputs/subgraph_sets.pkl
+outputs/unit5_test_predictions.csv
+outputs/elliptic2_features.csv
+outputs/research_extension/ibm_activity_feature_table.csv

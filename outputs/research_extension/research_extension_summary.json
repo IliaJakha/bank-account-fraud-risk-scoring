@@ -1,0 +1,51 @@
+{
+  "seed": 2026,
+  "data_inputs": [
+    "IBM AML HI-Small",
+    "Elliptic2"
+  ],
+  "common_candidate_count": 2500,
+  "common_candidate_positive_rate": 0.416,
+  "common_seed_enrichment_fraction_requested": 0.4,
+  "common_split_audit": [
+    {
+      "partition": "train",
+      "n": 1500,
+      "positive": 542,
+      "negative": 958,
+      "positive_rate": 0.36133333333333334
+    },
+    {
+      "partition": "validation",
+      "n": 437,
+      "positive": 178,
+      "negative": 259,
+      "positive_rate": 0.4073226544622426
+    },
+    {
+      "partition": "test",
+      "n": 382,
+      "positive": 253,
+      "negative": 129,
+      "positive_rate": 0.662303664921466
+    }
+  ],
+  "common_model_selected_by_validation": "GradBoosting",
+  "ibm_activity_candidate_selected_by_validation": {
+    "family": "validation_selected_original_family",
+    "features": "augmented_20"
+  },
+  "original_model_selected_by_validation": "LogReg",
+  "selected_threshold_policies": {
+    "validation_max_F1": 0.7726185806685141,
+    "validation_precision_at_least_80pct": 0.7726185806685141
+  },
+  "important_limitations": [
+    "Positive seed enrichment changes candidate distribution and prevalence",
+    "Common-sampler labels differ from original attempt-level labels",
+    "Original benchmark accounts recur across fit/validation/test",
+    "Account-disjoint stress tests may retain too few examples",
+    "Feature ablations on the same held-out test are exploratory",
+    "IBM and Elliptic2 node semantics/labels are not the same"
+  ]
+}
